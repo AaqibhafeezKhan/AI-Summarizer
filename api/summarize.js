@@ -1,5 +1,5 @@
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 3000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1500;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -46,7 +46,10 @@ export default async function handler(req, res) {
             await sleep(RETRY_DELAY);
             continue;
           }
-          throw new Error('AI model is warming up. Please wait 10-15 seconds and try again.');
+          return res.status(503).json({ 
+            error: 'AI model is warming up. Please click Summarize again in a few seconds.',
+            retryable: true 
+          });
         }
 
         const data = await response.json();
@@ -58,10 +61,13 @@ export default async function handler(req, res) {
         if (data.estimated_time) {
           console.log(`Model loading, estimated time: ${data.estimated_time}s, attempt ${attempt + 1}`);
           if (attempt < MAX_RETRIES - 1) {
-            await sleep(RETRY_DELAY * 2); // Wait longer for cold start
+            await sleep(RETRY_DELAY * 2);
             continue;
           }
-          throw new Error('AI model is warming up. Please wait 10-15 seconds and try again.');
+          return res.status(503).json({ 
+            error: 'AI model is warming up. Please click Summarize again in a few seconds.',
+            retryable: true 
+          });
         }
 
         if (data.error) {

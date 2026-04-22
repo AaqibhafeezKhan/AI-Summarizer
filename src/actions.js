@@ -52,6 +52,10 @@ export const summarizeText = (text) => async (dispatch) => {
     const data = await response.json();
 
     if (!response.ok) {
+      // Handle 503 model warming up
+      if (response.status === 503 && data.retryable) {
+        throw new Error('🤖 ' + data.error);
+      }
       throw new Error(data.error || `Server error: ${response.status}`);
     }
 
