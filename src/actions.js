@@ -3,7 +3,6 @@ export const SET_ERROR = 'SET_ERROR';
 export const SET_SUMMARY = 'SET_SUMMARY';
 export const CLEAR_SUMMARY = 'CLEAR_SUMMARY';
 
-// Use local API endpoint (works with Netlify dev or production)
 const API_URL = '/api/summarize';
 
 export const setLoading = (isLoading) => ({
@@ -43,12 +42,20 @@ export const summarizeText = (text) => async (dispatch) => {
       body: JSON.stringify({ text })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate summary. Please try again.');
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const textResponse = await response.text();
+      console.error('Non-JSON response:', textResponse.substring(0, 500));
+      throw new Error('Server returned an invalid response. Please try again.');
     }
 
-    const { summary } = await response.json();
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || `Server error: ${response.status}`);
+    }
+
+    const { summary } = data;
 
     if (Array.isArray(summary) && summary.length > 0 && summary[0].summary_text) {
       dispatch(setSummary(summary[0].summary_text));
@@ -58,7 +65,12 @@ export const summarizeText = (text) => async (dispatch) => {
       throw new Error('Unexpected response format from AI service.');
     }
   } catch (error) {
-    dispatch(setError(error.message || 'An error occurred while generating the summary.'));
+    console.error('Summarize error:', error);
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      dispatch(setError('Network error. Please check your connection and try again.'));
+    } else {
+      dispatch(setError(error.message || 'An error occurred while generating the summary.'));
+    }
   } finally {
     dispatch(setLoading(false));
   }
