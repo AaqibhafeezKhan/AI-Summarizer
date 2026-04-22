@@ -68,6 +68,8 @@ export const summarizeText = (text) => async (dispatch) => {
     console.error('Summarize error:', error);
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       dispatch(setError('Network error. Please check your connection and try again.'));
+    } else if (error.message?.includes('warming up') || error.message?.includes('loading')) {
+      dispatch(setError('🤖 AI model is warming up. Please wait 10-15 seconds and try again.'));
     } else {
       dispatch(setError(error.message || 'An error occurred while generating the summary.'));
     }

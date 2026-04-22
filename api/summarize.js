@@ -1,5 +1,5 @@
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
+const MAX_RETRIES = 5;
+const RETRY_DELAY = 3000;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -40,8 +40,13 @@ export default async function handler(req, res) {
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('application/json')) {
           const textResponse = await response.text();
-          console.log('Non-JSON response:', textResponse.substring(0, 200));
-          throw new Error('Model is loading, please retry in a few seconds');
+          console.log('Non-JSON response (model loading?):', textResponse.substring(0, 200));
+          if (attempt < MAX_RETRIES - 1) {
+            console.log(`Retrying after non-JSON response, attempt ${attempt + 1}/${MAX_RETRIES}`);
+            await sleep(RETRY_DELAY);
+            continue;
+          }
+          throw new Error('AI model is warming up. Please wait 10-15 seconds and try again.');
         }
 
         const data = await response.json();
@@ -53,10 +58,10 @@ export default async function handler(req, res) {
         if (data.estimated_time) {
           console.log(`Model loading, estimated time: ${data.estimated_time}s, attempt ${attempt + 1}`);
           if (attempt < MAX_RETRIES - 1) {
-            await sleep(RETRY_DELAY);
+            await sleep(RETRY_DELAY * 2); // Wait longer for cold start
             continue;
           }
-          throw new Error('Model is still loading. Please try again in a few seconds.');
+          throw new Error('AI model is warming up. Please wait 10-15 seconds and try again.');
         }
 
         if (data.error) {
